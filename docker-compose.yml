@@ -1,0 +1,103 @@
+version: "3.2"
+services:
+  consul-server:
+    image: "consul:latest"
+    volumes:
+      - ./data/consul-server/data:/consul/data
+      - ./data/consul-server/config:/consul/config
+    environment:
+      - "CONSUL_LOCAL_CONFIG={\"disable_update_check\": true, \"skip_leave_on_interrupt\": true}"
+    entrypoint:
+      - consul
+      - agent
+      - -server
+      - -data-dir=/consul
+      - -bootstrap-expect=1
+      - -ui
+      - -dev
+      - -bind=0.0.0.0
+      - -client=0.0.0.0
+    expose:
+      - "8300" # server RPC
+      - "8301" # serf LAN
+      - "8302" # serf WAN
+    ports:
+      - "8400:8400"
+      - "8500:8500"
+      - "8600:8600"
+      - "8600:8600/udp" # dig のため
+  # サーバアプリケーション1
+  consul-client1:
+    image: "consul:latest"
+    volumes:
+      - ./data/consul-client1/data:/consul/data
+      - ./data/consul-client1/config:/consul/config
+    entrypoint:
+      - consul
+      - agent
+      - -data-dir=/consul
+      - -retry-join=consul-server
+      - -client=0.0.0.0
+    expose:
+      - "8500"
+    links:
+      - consul-server
+  server1:
+    build: ./server/
+    hostname: server1
+    environment:
+      COLOR: "#008080"
+    ports:
+      - "8081:8080"
+    links:
+      - consul-client1:consul
+    depends_on:
+      - consul-client1
+  # サーバアプリケーション2
+  consul-client2:
+    image: "consul:latest"
+    volumes:
+      - ./data/consul-client2/data:/consul/data
+      - ./data/consul-client2/config:/consul/config
+    entrypoint:
+      - consul
+      - agent
+      - -data-dir=/consul
+      - -retry-join=consul-server
+      - -client=0.0.0.0
+    links:
+      - consul-server
+  server2:
+    build: ./server/
+    hostname: server2
+    environment:
+      COLOR: "#800000"
+    ports:
+      - "8082:8080"
+    links:
+      - consul-client2:consul
+    depends_on:
+      - consul-client2
+  # クライアントアプリケーション
+  consul-client3:
+    image: "consul:latest"
+    volumes:
+      - ./data/consul-client3/data:/consul/data
+      - ./data/consul-client3/config:/consul/config
+    entrypoint:
+      - consul
+      - agent
+      - -data-dir=/consul
+      - -retry-join=consul-server
+      - -client=0.0.0.0
+    links:
+      - consul-server
+  client:
+    build: ./client/
+    hostname: client
+    ports:
+      - "8080:8080"
+    links:
+      - consul-client3:consul
+    depends_on:
+      - consul-client3
