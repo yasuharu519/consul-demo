@@ -13,13 +13,16 @@ app = Flask(__name__)
 BASE_CONSUL_URL = 'http://consul:8500'
 
 # consul 登録したサービス名
-SERVICE_NAME = 'server'
+SERVICE_NAME = 'client'
 SERVICE_ADDRESS = socket.gethostbyname(socket.gethostname())
 PORT = 8080
 
+# アクセス先サービス名
+SERVER_SERVICE_NAME = 'server'
+
 @app.route('/')
 def index():
-    url = BASE_CONSUL_URL + '/v1/catalog/service/' + SERVICE_NAME
+    url = BASE_CONSUL_URL + '/v1/catalog/service/' + SERVER_SERVICE_NAME
     res = requests.get(url).json()
     choosed = random.choice(res)
     return requests.get("http://{}:{}".format(
@@ -37,7 +40,7 @@ def health():
 def register():
     url = BASE_CONSUL_URL + '/v1/agent/service/register'
     data = {
-        'Name': 'client',
+        'Name': SERVICE_NAME,
         'Tags': ['flask'],
         'Address': SERVICE_ADDRESS,
         'Port': 8080,
