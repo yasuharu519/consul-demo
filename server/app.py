@@ -1,6 +1,7 @@
 import os
 import json
 import socket
+import atexit
 from time import sleep
 
 import requests
@@ -10,6 +11,8 @@ app = Flask(__name__)
 
 BASE_CONSUL_URL = 'http://consul:8500'
 
+# consul 登録したサービス名
+SERVICE_NAME = 'server'
 SERVICE_ADDRESS = socket.gethostbyname(socket.gethostname())
 PORT = 8080
 
@@ -37,7 +40,7 @@ def register():
         'Port': 8080,
         'Check': {
             'http': 'http://{address}:{port}/health'.format(address=SERVICE_ADDRESS, port=PORT),
-            'interval': '2s'
+            'interval': '10s'
         }
     }
     app.logger.debug('Service registration parameters: ', data)
@@ -47,6 +50,12 @@ def register():
     )
     return res.text
 
+@app.route('/deregister')
+def deregister():
+    url = BASE_CONSUL_URL + '/v1/agent/service/deregister/' + SERVICE_NAME
+    app.logger.info('Service deregister: {}'.format(SERVICE_NAME))
+    res = requests.put(url)
+    return "ok" if res else "failed"
 
 if __name__ == '__main__':
     sleep(3)
@@ -55,4 +64,5 @@ if __name__ == '__main__':
     except:
         app.logger.debug('Something wrong happened!')
         pass
+    atexit.register(deregister)
     app.run(debug=True, host="0.0.0.0", port=PORT)
